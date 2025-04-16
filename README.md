@@ -2,6 +2,8 @@
 
 **Progressively build frameworks and applications with Claude Code.**
 
+![Autobot Logo](images/autobot.png)
+
 ## Overview
 Autobot is a Python-based CLI tool for generating, listing, and running code templates using Claude Code. It helps you scaffold and evolve applications and frameworks in a modular, repeatable way.
 
