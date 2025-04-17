@@ -60,18 +60,24 @@ Autobot is a Python-based CLI tool for generating, listing, and running code tem
 
 ## AI Agent Configuration
 
-Autobot supports multiple AI code agents. The available agents are defined in the `ai-tools/` directory as text files. Each file should contain the command line to invoke that agent.
+Autobot supports multiple AI code agents. The available agents are defined in the `ai-tools/` directory as Python files. Each file must define an `execute(template_path)` function that returns the shell command to run for that agent.
 
-- `ai-tools/codex.txt` (default):
+- `ai-tools/codex.py` (default):
+  ```python
+  def execute(template_path):
+      with open(template_path, 'r') as file:
+          template = file.read()
+      return f"codex --quiet --approval-mode full-auto '{template}'"
   ```
-  codex --approval-mode full-auto
-  ```
-- `ai-tools/claude.txt`:
-  ```
-  claude -p --allowedTools "Bash,Edit,Write"
+- `ai-tools/claude.py`:
+  ```python
+  def execute(template_path):
+      with open(template_path, 'r') as file:
+          template = file.read()
+      return f"echo '{template}' | claude -p --allowedTools 'Bash,Edit,Write'"
   ```
 
-To add a new agent, create a new `.py` file in `ai-tools/` with the desired command.
+To add a new agent, create a new `.py` file in `ai-tools/` with the required `execute(template_path)` function.
 
 Choose an agent at runtime with `--ai-tool <agent>`. If not specified, `codex` is used by default.
 
