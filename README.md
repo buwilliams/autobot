@@ -38,10 +38,10 @@ alias autobot='<path_to_autobot>/autobot.sh'
 autobot
 
 # List available types
-autobot list
+autobot ls
 
 # List templates for a type
-autobot list <type>
+autobot ls <type>
 
 # Show a template's contents
 autobot show <type>:<template_name>
@@ -59,7 +59,7 @@ autobot dryrun <type>:<template_name> --ai-tool claude
 
 ## Example
 ```sh
-autobot list backend
+autobot ls backend
 autobot show backend:python
 autobot run backend:python
 autobot run backend:python --ai-tool claude
