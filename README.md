@@ -89,5 +89,15 @@ To add a new agent, create a new `.py` file in `ai-tools/` with the required `ex
 
 Choose an agent at runtime with `--ai-tool <agent>`. If not specified, `codex` is used by default.
 
+## Recommended Template Order
+
+In general, the templates can be mixed and matched per your use case. If you are building an application from stratch, here is a recommended order:
+
+1. Backend
+2. Database
+3. Frontend
+4. Design
+5. Application
+
 ## License
 MIT
