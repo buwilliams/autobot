@@ -4,4 +4,4 @@ def execute(template_path):
         template = file.read()
     # Escape single quotes for shell: 'abc' -> 'a'"'"'b'"'"'c'
     escaped = template.replace("'", "'\"'\"'")
-    return f"codex --quiet --approval-mode full-auto '{escaped}'"
+    return f"codex --approval-mode full-auto '{escaped}'"

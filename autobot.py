@@ -46,8 +46,8 @@ Usage:
   {script_name} run <type>:<template_name> [--ai-tool <engine>]     Run the template command
   {script_name} dryrun <type>:<template_name> [--ai-tool <engine>]  Show the command that would be run
   {script_name} show <type>:<template_name>                         Print the template to STDOUT
-  {script_name} list                                                List available types
-  {script_name} list <type>                                         List available templates for a type
+  {script_name} ls                                                  List available types
+  {script_name} ls <type>                                           List available templates for a type
 
 Types: {', '.join(types)}
 AI Tools: {', '.join(ai_tools)} (default: {DEFAULT_AI_TOOL})
@@ -138,10 +138,10 @@ def main():
     if len(args) == 0 or (len(args) == 1 and args[0] == 'help'):
         show_help()
         return
-    if args[0] == 'list' and len(args) == 1:
+    if args[0] == 'ls' and len(args) == 1:
         list_types()
         return
-    if args[0] == 'list' and len(args) == 2:
+    if args[0] == 'ls' and len(args) == 2:
         t = args[1]
         list_templates(t)
         return
