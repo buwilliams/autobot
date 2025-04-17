@@ -2,8 +2,6 @@
 
 ## Core Design Principles
 
-All global styles are stored in `frontend/css/app.css`
-
 ### Typography System: 4 Sizes, 2 Weights
 - **4 Font Sizes Only**:
   - Size 1: Large headings
@@ -44,7 +42,7 @@ All global styles are stored in `frontend/css/app.css`
   - Instead of 11px margin → Use 12px (divisible by 4)
   - Instead of 15px gap → Use 16px (divisible by 8)
 
-- **Use Tailwind's spacing utilities**:
+- **If Tailwind is used, use Tailwind spacing utilities**:
   - p-4 (16px), p-6 (24px), p-8 (32px)
   - m-2 (8px), m-4 (16px), m-6 (24px)
   - gap-2 (8px), gap-4 (16px), gap-8 (32px)
