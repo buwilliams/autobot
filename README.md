@@ -75,8 +75,11 @@ Autobot supports multiple AI code agents. The available agents are defined in th
   def execute(template_path):
       with open(template_path, 'r') as file:
           template = file.read()
-      return f"codex --quiet --approval-mode full-auto '{template}'"
+      # Escape single quotes for shell: 'abc' -> 'a'"'"'b'"'"'c'
+      escaped = template.replace("'", "'\"'\"'")
+      return f"codex --approval-mode full-auto '{escaped}'"
   ```
+  **Note:** Codex will automatically escape single quotes in the template content to ensure the generated shell command runs correctly.
 - `ai-tools/claude.py`:
   ```python
   def execute(template_path):
