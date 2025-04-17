@@ -99,8 +99,8 @@ In general, the templates can be mixed and matched per your use case. If you are
 1. Backend
 2. Database
 3. Frontend
-4. Design
-5. Application
+4. Application
+5. Design
 
 ## License
 MIT
