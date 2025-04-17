@@ -3,22 +3,26 @@ import sys
 import os
 import subprocess
 
+import importlib.util
+
 TEMPLATES_DIR = os.path.join(os.path.dirname(__file__), 'templates')
 AI_TOOLS_DIR = os.path.join(os.path.dirname(__file__), 'ai-tools')
 DEFAULT_AI_TOOL = 'codex'
 
 def get_ai_tools():
     try:
-        return [f[:-4] for f in os.listdir(AI_TOOLS_DIR) if f.endswith('.txt')]
+        return [f[:-3] for f in os.listdir(AI_TOOLS_DIR) if f.endswith('.py')]
     except Exception:
         return []
 
-def get_ai_tool_command(ai_tool):
-    tool_file = os.path.join(AI_TOOLS_DIR, f"{ai_tool}.txt")
+def get_ai_tool_module(ai_tool):
+    tool_file = os.path.join(AI_TOOLS_DIR, f"{ai_tool}.py")
     if not os.path.isfile(tool_file):
         raise ValueError(f"AI tool '{ai_tool}' not found. Available: {', '.join(get_ai_tools())}")
-    with open(tool_file, 'r') as f:
-        return f.read().strip()
+    spec = importlib.util.spec_from_file_location(f"ai_tools.{ai_tool}", tool_file)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
 def get_types():
     try:
@@ -91,8 +95,10 @@ def build_template_command(arg, ai_tool=DEFAULT_AI_TOOL):
     file_path = os.path.join(TEMPLATES_DIR, t, f"{name}.md")
     if not os.path.isfile(file_path):
         raise FileNotFoundError(f"Template '{name}' not found for type '{t}'.")
-    engine_cmd = get_ai_tool_command(ai_tool)
-    cmd = f"python -c \"with open('{file_path}', 'r') as file: print(file.read())\" | {engine_cmd}"
+    module = get_ai_tool_module(ai_tool)
+    if not hasattr(module, 'execute'):
+        raise AttributeError(f"AI tool module '{ai_tool}' does not have an 'execute' method.")
+    cmd = module.execute(file_path)
     return cmd
 
 def run_template(arg, ai_tool=DEFAULT_AI_TOOL):
