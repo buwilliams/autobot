@@ -7,9 +7,14 @@
 ## Overview
 Autobot is a Python-based CLI tool for generating, listing, and running code templates using external AI code agents (like Codex or Claude). It helps you scaffold and evolve applications and frameworks in a modular, repeatable way. The AI agent command is externalized and configurable via the `ai-tools` directory.
 
-## Supported Agents
-- OpenAI Codex
-- Anthropic Claude
+## Prerequisites
+- [Python 3.7+](https://www.python.org/downloads/)
+- [Node.js (for some agents)](https://nodejs.org/en/download/)
+- At least one supported AI agent CLI:
+  - [Claude Code (Anthropic)](https://docs.anthropic.com/en/docs/agents-and-tools/claude-code/overview)
+  - [OpenAI Codex](https://github.com/openai/codex)
+
+> Note: Each agent may have its own installation and authentication requirements. See the linked documentation for setup instructions.
 
 ## Features
 - List available template types and templates
@@ -52,11 +57,6 @@ Autobot is a Python-based CLI tool for generating, listing, and running code tem
 ./autobot.sh run backend:python --ai-tool claude
 ./autobot.sh dryrun backend:python --ai-tool codex
 ```
-
-## Requirements
-- Python 3.7+
-- At least one supported AI agent CLI (e.g., Codex, Claude)
-- Agent command(s) defined in `ai-tools/` (see above)
 
 ## AI Agent Configuration
 
