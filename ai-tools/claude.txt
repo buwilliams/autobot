@@ -1,0 +1,1 @@
+claude -p --allowedTools "Bash,Edit,Write"

@@ -4,6 +4,21 @@ import os
 import subprocess
 
 TEMPLATES_DIR = os.path.join(os.path.dirname(__file__), 'templates')
+AI_TOOLS_DIR = os.path.join(os.path.dirname(__file__), 'ai-tools')
+DEFAULT_AI_TOOL = 'codex'
+
+def get_ai_tools():
+    try:
+        return [f[:-4] for f in os.listdir(AI_TOOLS_DIR) if f.endswith('.txt')]
+    except Exception:
+        return []
+
+def get_ai_tool_command(ai_tool):
+    tool_file = os.path.join(AI_TOOLS_DIR, f"{ai_tool}.txt")
+    if not os.path.isfile(tool_file):
+        raise ValueError(f"AI tool '{ai_tool}' not found. Available: {', '.join(get_ai_tools())}")
+    with open(tool_file, 'r') as f:
+        return f.read().strip()
 
 def get_types():
     try:
@@ -16,20 +31,22 @@ def get_help_text():
     script_name = os.path.basename(sys.argv[0])
     pad = ' ' * (len(script_name) + 1)
     types = get_types()
+    ai_tools = get_ai_tools()
     purpose = "Progressively build frameworks and applications with Claude Code."
     return f"""
 {purpose}
 
 Usage:
-  {script_name}                                Show this help message
-  {script_name} help                           Show this help message
-  {script_name} run <type>:<template_name>     Run the template command
-  {script_name} dryrun <type>:<template_name>  Show the command that would be run
-  {script_name} show <type>:<template_name>    Print the template to STDOUT
-  {script_name} list                           List available types
-  {script_name} list <type>                    List available templates for a type
+  {script_name}                                                     Show this help message
+  {script_name} help                                                Show this help message
+  {script_name} run <type>:<template_name> [--ai-tool <engine>]     Run the template command
+  {script_name} dryrun <type>:<template_name> [--ai-tool <engine>]  Show the command that would be run
+  {script_name} show <type>:<template_name>                         Print the template to STDOUT
+  {script_name} list                                                List available types
+  {script_name} list <type>                                         List available templates for a type
 
 Types: {', '.join(types)}
+AI Tools: {', '.join(ai_tools)} (default: {DEFAULT_AI_TOOL})
 """
 
 def show_help():
@@ -58,16 +75,32 @@ def list_templates(t):
         for f in files:
             print(f"  {f}")
 
-def run_template(arg):
+def parse_ai_tool(args):
+    if '--ai-tool' in args:
+        idx = args.index('--ai-tool')
+        if idx+1 < len(args):
+            return args[idx+1]
+        else:
+            print("Missing value for --ai-tool. Using default.")
+    return DEFAULT_AI_TOOL
+
+def build_template_command(arg, ai_tool=DEFAULT_AI_TOOL):
     if ':' not in arg:
-        print("Invalid format. Use <type>:<template_name>")
-        return
+        raise ValueError("Invalid format. Use <type>:<template_name>")
     t, name = arg.split(':', 1)
     file_path = os.path.join(TEMPLATES_DIR, t, f"{name}.md")
     if not os.path.isfile(file_path):
-        print(f"Template '{name}' not found for type '{t}'.")
+        raise FileNotFoundError(f"Template '{name}' not found for type '{t}'.")
+    engine_cmd = get_ai_tool_command(ai_tool)
+    cmd = f"python -c \"with open('{file_path}', 'r') as file: print(file.read())\" | {engine_cmd}"
+    return cmd
+
+def run_template(arg, ai_tool=DEFAULT_AI_TOOL):
+    try:
+        cmd = build_template_command(arg, ai_tool)
+    except Exception as e:
+        print(f"Error: {e}")
         return
-    cmd = f"python -c \"with open(\'{file_path}\', \'r\') as file: print(file.read())\" | claude -p --allowedTools \"Bash,Edit,Write\""
     try:
         subprocess.run(cmd, shell=True, check=True)
     except subprocess.CalledProcessError as e:
@@ -85,38 +118,39 @@ def show_template(arg):
     with open(file_path, 'r') as f:
         print(f.read())
 
-def dryrun_template(arg):
-    if ':' not in arg:
-        print("Invalid format. Use <type>:<template_name>")
+def dryrun_template(arg, ai_tool=DEFAULT_AI_TOOL):
+    try:
+        cmd = build_template_command(arg, ai_tool)
+    except Exception as e:
+        print(f"Error: {e}")
         return
-    t, name = arg.split(':', 1)
-    file_path = os.path.join(TEMPLATES_DIR, t, f"{name}.md")
-    if not os.path.isfile(file_path):
-        print(f"Template '{name}' not found for type '{t}'.")
-        return
-    cmd = f"python -c \"with open(\'{file_path}\', \'r\') as file: print(file.read())\" | claude -p --allowedTools \"Bash,Edit,Write\""
     print("[DRYRUN] Command that would be executed:")
     print(cmd)
 
 def main():
-    if len(sys.argv) == 1 or (len(sys.argv) == 2 and sys.argv[1] == 'help'):
+    args = sys.argv[1:]
+    if len(args) == 0 or (len(args) == 1 and args[0] == 'help'):
         show_help()
         return
-    if sys.argv[1] == 'list' and len(sys.argv) == 2:
+    if args[0] == 'list' and len(args) == 1:
         list_types()
         return
-    if sys.argv[1] == 'list' and len(sys.argv) == 3:
-        t = sys.argv[2]
+    if args[0] == 'list' and len(args) == 2:
+        t = args[1]
         list_templates(t)
         return
-    if sys.argv[1] == 'run' and len(sys.argv) == 3:
-        run_template(sys.argv[2])
+    if args[0] == 'run' and len(args) >= 2:
+        ai_tool = parse_ai_tool(args)
+        arg = args[1]
+        run_template(arg, ai_tool)
         return
-    if sys.argv[1] == 'dryrun' and len(sys.argv) == 3:
-        dryrun_template(sys.argv[2])
+    if args[0] == 'dryrun' and len(args) >= 2:
+        ai_tool = parse_ai_tool(args)
+        arg = args[1]
+        dryrun_template(arg, ai_tool)
         return
-    if sys.argv[1] == 'show' and len(sys.argv) == 3:
-        show_template(sys.argv[2])
+    if args[0] == 'show' and len(args) == 2:
+        show_template(args[1])
         return
     show_help()
 
