@@ -23,39 +23,47 @@ Autobot is a Python-based CLI tool for generating, listing, and running code tem
 - Dry-run to preview the command
 - Easily add support for new AI agents via the `ai-tools` directory
 
+## Recommended to add Autobot to your shell
+
+Add the following alias to your shell configuration file (e.g. `~/.bashrc` or `~/.zshrc`):
+
+```sh
+alias autobot='<path_to_autobot>/autobot.sh'
+```
+
 ## Usage
 
 ```sh
 # Show help
-./autobot.sh
+autobot
 
 # List available types
-./autobot.sh list
+autobot list
 
 # List templates for a type
-./autobot.sh list <type>
+autobot list <type>
 
 # Show a template's contents
-./autobot.sh show <type>:<template_name>
+autobot show <type>:<template_name>
 
 # Run a template through the default agent (Codex)
-./autobot.sh run <type>:<template_name>
+autobot run <type>:<template_name>
 
 # Run a template through Claude
-./autobot.sh run <type>:<template_name> --ai-tool claude
+autobot run <type>:<template_name> --ai-tool claude
 
 # Preview the command that would be run (dryrun)
-./autobot.sh dryrun <type>:<template_name>
-./autobot.sh dryrun <type>:<template_name> --ai-tool claude
+autobot dryrun <type>:<template_name>
+autobot dryrun <type>:<template_name> --ai-tool claude
 ```
 
 ## Example
 ```sh
-./autobot.sh list backend
-./autobot.sh show backend:python
-./autobot.sh run backend:python
-./autobot.sh run backend:python --ai-tool claude
-./autobot.sh dryrun backend:python --ai-tool codex
+autobot list backend
+autobot show backend:python
+autobot run backend:python
+autobot run backend:python --ai-tool claude
+autobot dryrun backend:python --ai-tool codex
 ```
 
 ## AI Agent Configuration
