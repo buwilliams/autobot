@@ -23,16 +23,20 @@ python3 autobot.py ls <type>                               # List specs for type
 python3 autobot.py show <type>:<spec>                      # Show spec content
 python3 autobot.py create <type>:<spec>                    # Create new spec
 python3 autobot.py refine <type>:<spec>                    # Refine existing spec
-python3 autobot.py generate <type>:<spec>                  # Generate with default AI tool (codex)
-python3 autobot.py generate <type>:<spec> --ai-tool claude # Generate with specific AI tool
+python3 autobot.py generate <type>:<spec>                  # Generate with default AI tool (claude)
+python3 autobot.py generate <type>:<spec> --ai-tool codex  # Generate with specific AI tool
+python3 autobot.py config default-ai-tool <tool>           # Set default AI tool
+python3 autobot.py config show                             # Show current configuration
 python3 autobot.py dryrun <type>:<spec>                    # Preview generation command
 ```
 
 ## AI Tool Integration
 
 Each AI tool in `ai-tools/` must implement an `execute(spec_path)` function that returns a shell command string. Available tools:
-- `codex.py` (default): Uses OpenAI Codex with full-auto approval
-- `claude.py`: Pipes spec to Claude Code with Bash/Edit/Write tools
+- `claude.py` (default): Pipes spec to Claude Code with Bash/Edit/Write tools
+- `codex.py`: Uses OpenAI Codex with full-auto approval
+
+The default AI tool can be changed using `autobot config default-ai-tool <tool>` and is persisted in `.autobot-config.json`.
 
 ## Spec Structure
 

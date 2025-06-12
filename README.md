@@ -54,15 +54,19 @@ autobot create <type>:<spec_name>
 # Refine an existing spec
 autobot refine <type>:<spec_name>
 
-# Generate application from spec using default agent (Codex)
+# Generate application from spec using default agent (Claude)
 autobot generate <type>:<spec_name>
 
-# Generate application using Claude
-autobot generate <type>:<spec_name> --ai-tool claude
+# Generate application using Codex
+autobot generate <type>:<spec_name> --ai-tool codex
 
 # Preview the generation command (dryrun)
 autobot dryrun <type>:<spec_name>
-autobot dryrun <type>:<spec_name> --ai-tool claude
+autobot dryrun <type>:<spec_name> --ai-tool codex
+
+# Configure default AI tool
+autobot config default-ai-tool <tool>
+autobot config show
 ```
 
 ## Example
@@ -76,10 +80,14 @@ autobot show backend:python
 
 # Generate application from spec
 autobot generate backend:python
-autobot generate backend:python --ai-tool claude
+autobot generate backend:python --ai-tool codex
 
 # Preview generation command
 autobot dryrun backend:python --ai-tool codex
+
+# Configure AI tools
+autobot config show
+autobot config default-ai-tool codex
 ```
 
 ## AI Agent Configuration
@@ -106,7 +114,7 @@ Autobot supports multiple AI code agents. The available agents are defined in th
 
 To add a new agent, create a new `.py` file in `ai-tools/` with the required `execute(spec_path)` function.
 
-Choose an agent at runtime with `--ai-tool <agent>`. If not specified, `codex` is used by default.
+Choose an agent at runtime with `--ai-tool <agent>`. If not specified, `claude` is used by default. You can change the default with `autobot config default-ai-tool <tool>`.
 
 ## Spec Structure
 

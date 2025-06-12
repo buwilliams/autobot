@@ -57,3 +57,6 @@ htmlcov/
 # Misc
 .DS_Store
 *.log
+
+# Autobot configuration (user-specific)
+.autobot-config.json

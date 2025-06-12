@@ -2,18 +2,53 @@
 import sys
 import os
 import subprocess
+import json
 
 import importlib.util
 
 SPECS_DIR = os.path.join(os.path.dirname(__file__), 'specs')
 AI_TOOLS_DIR = os.path.join(os.path.dirname(__file__), 'ai-tools')
-DEFAULT_AI_TOOL = 'codex'
+CONFIG_FILE = os.path.join(os.path.dirname(__file__), '.autobot-config.json')
+DEFAULT_AI_TOOL = 'claude'
 
 def get_ai_tools():
     try:
         return [f[:-3] for f in os.listdir(AI_TOOLS_DIR) if f.endswith('.py')]
     except Exception:
         return []
+
+def load_config():
+    try:
+        if os.path.exists(CONFIG_FILE):
+            with open(CONFIG_FILE, 'r') as f:
+                return json.load(f)
+    except Exception:
+        pass
+    return {}
+
+def save_config(config):
+    try:
+        with open(CONFIG_FILE, 'w') as f:
+            json.dump(config, f, indent=2)
+        return True
+    except Exception:
+        return False
+
+def get_default_ai_tool():
+    config = load_config()
+    return config.get('default_ai_tool', DEFAULT_AI_TOOL)
+
+def set_default_ai_tool(ai_tool):
+    available_tools = get_ai_tools()
+    if ai_tool not in available_tools:
+        raise ValueError(f"AI tool '{ai_tool}' not found. Available: {', '.join(available_tools)}")
+    
+    config = load_config()
+    config['default_ai_tool'] = ai_tool
+    if save_config(config):
+        return True
+    else:
+        raise Exception("Failed to save configuration")
 
 def get_ai_tool_module(ai_tool):
     tool_file = os.path.join(AI_TOOLS_DIR, f"{ai_tool}.py")
@@ -36,6 +71,7 @@ def get_help_text():
     pad = ' ' * (len(script_name) + 1)
     spec_types = get_spec_types()
     ai_tools = get_ai_tools()
+    current_default = get_default_ai_tool()
     purpose = "Save, refine, and leverage application specs for AI-driven development."
     return f"""
 {purpose}
@@ -50,9 +86,11 @@ Usage:
   {script_name} ls <type>                                      List specs for a type
   {script_name} create <type>:<spec_name>                      Create new spec from template
   {script_name} refine <type>:<spec_name>                      Refine existing spec
+  {script_name} config default-ai-tool <tool>                  Set default AI tool
+  {script_name} config show                                    Show current configuration
 
 Spec Types: {', '.join(spec_types)}
-AI Tools: {', '.join(ai_tools)} (default: {DEFAULT_AI_TOOL})
+AI Tools: {', '.join(ai_tools)} (default: {current_default})
 """
 
 def show_help():
@@ -88,9 +126,11 @@ def parse_ai_tool(args):
             return args[idx+1]
         else:
             print("Missing value for --ai-tool. Using default.")
-    return DEFAULT_AI_TOOL
+    return get_default_ai_tool()
 
-def build_generation_command(arg, ai_tool=DEFAULT_AI_TOOL):
+def build_generation_command(arg, ai_tool=None):
+    if ai_tool is None:
+        ai_tool = get_default_ai_tool()
     if ':' not in arg:
         raise ValueError("Invalid format. Use <type>:<spec_name>")
     t, name = arg.split(':', 1)
@@ -103,7 +143,9 @@ def build_generation_command(arg, ai_tool=DEFAULT_AI_TOOL):
     cmd = module.execute(file_path)
     return cmd
 
-def generate_from_spec(arg, ai_tool=DEFAULT_AI_TOOL):
+def generate_from_spec(arg, ai_tool=None):
+    if ai_tool is None:
+        ai_tool = get_default_ai_tool()
     try:
         cmd = build_generation_command(arg, ai_tool)
     except Exception as e:
@@ -126,7 +168,9 @@ def show_spec(arg):
     with open(file_path, 'r') as f:
         print(f.read())
 
-def dryrun_generation(arg, ai_tool=DEFAULT_AI_TOOL):
+def dryrun_generation(arg, ai_tool=None):
+    if ai_tool is None:
+        ai_tool = get_default_ai_tool()
     try:
         cmd = build_generation_command(arg, ai_tool)
     except Exception as e:
@@ -241,6 +285,25 @@ def refine_spec(arg):
         except (subprocess.CalledProcessError, FileNotFoundError):
             print(f"Could not open editor. Please manually edit: {file_path}")
 
+def show_config():
+    config = load_config()
+    current_default = get_default_ai_tool()
+    available_tools = get_ai_tools()
+    
+    print("Current Configuration:")
+    print(f"  Default AI Tool: {current_default}")
+    print(f"  Available AI Tools: {', '.join(available_tools)}")
+    print(f"  Config File: {CONFIG_FILE}")
+
+def set_config_default_ai_tool(ai_tool):
+    try:
+        set_default_ai_tool(ai_tool)
+        print(f"Default AI tool set to: {ai_tool}")
+    except ValueError as e:
+        print(f"Error: {e}")
+    except Exception as e:
+        print(f"Error saving configuration: {e}")
+
 def main():
     args = sys.argv[1:]
     if len(args) == 0 or (len(args) == 1 and args[0] == 'help'):
@@ -272,6 +335,16 @@ def main():
     if args[0] == 'refine' and len(args) == 2:
         refine_spec(args[1])
         return
+    if args[0] == 'config' and len(args) >= 2:
+        if args[1] == 'show':
+            show_config()
+            return
+        elif args[1] == 'default-ai-tool' and len(args) == 3:
+            set_config_default_ai_tool(args[2])
+            return
+        else:
+            print("Invalid config command. Use 'config show' or 'config default-ai-tool <tool>'")
+            return
     show_help()
 
 if __name__ == '__main__':
