@@ -32,7 +32,7 @@ def get_spec_types():
         return []
 
 def get_help_text():
-    script_name = os.path.basename(sys.argv[0])
+    script_name = "autobot"  # Always show "autobot" regardless of how script is called
     pad = ' ' * (len(script_name) + 1)
     spec_types = get_spec_types()
     ai_tools = get_ai_tools()
