@@ -5,7 +5,7 @@ import subprocess
 
 import importlib.util
 
-TEMPLATES_DIR = os.path.join(os.path.dirname(__file__), 'templates')
+SPECS_DIR = os.path.join(os.path.dirname(__file__), 'specs')
 AI_TOOLS_DIR = os.path.join(os.path.dirname(__file__), 'ai-tools')
 DEFAULT_AI_TOOL = 'codex'
 
@@ -24,58 +24,60 @@ def get_ai_tool_module(ai_tool):
     spec.loader.exec_module(module)
     return module
 
-def get_types():
+def get_spec_types():
     try:
-        return [d for d in os.listdir(TEMPLATES_DIR)
-                if os.path.isdir(os.path.join(TEMPLATES_DIR, d))]
+        return [d for d in os.listdir(SPECS_DIR)
+                if os.path.isdir(os.path.join(SPECS_DIR, d))]
     except Exception:
         return []
 
 def get_help_text():
     script_name = os.path.basename(sys.argv[0])
     pad = ' ' * (len(script_name) + 1)
-    types = get_types()
+    spec_types = get_spec_types()
     ai_tools = get_ai_tools()
-    purpose = "Progressively build frameworks and applications with Claude Code."
+    purpose = "Save, refine, and leverage application specs for AI-driven development."
     return f"""
 {purpose}
 
 Usage:
-  {script_name}                                                     Show this help message
-  {script_name} help                                                Show this help message
-  {script_name} run <type>:<template_name> [--ai-tool <engine>]     Run the template command
-  {script_name} dryrun <type>:<template_name> [--ai-tool <engine>]  Show the command that would be run
-  {script_name} show <type>:<template_name>                         Print the template to STDOUT
-  {script_name} ls                                                  List available types
-  {script_name} ls <type>                                           List available templates for a type
+  {script_name}                                                Show this help message
+  {script_name} help                                           Show this help message
+  {script_name} generate <type>:<spec_name> [--ai-tool <tool>] Generate application from spec
+  {script_name} dryrun <type>:<spec_name> [--ai-tool <tool>]   Preview generation command
+  {script_name} show <type>:<spec_name>                        Display spec content
+  {script_name} ls                                             List available spec types
+  {script_name} ls <type>                                      List specs for a type
+  {script_name} create <type>:<spec_name>                      Create new spec from template
+  {script_name} refine <type>:<spec_name>                      Refine existing spec
 
-Types: {', '.join(types)}
+Spec Types: {', '.join(spec_types)}
 AI Tools: {', '.join(ai_tools)} (default: {DEFAULT_AI_TOOL})
 """
 
 def show_help():
     print(get_help_text())
 
-def list_types():
-    types = get_types()
-    if types:
-        print("Available types:")
-        for t in types:
+def list_spec_types():
+    spec_types = get_spec_types()
+    if spec_types:
+        print("Available spec types:")
+        for t in spec_types:
             print(f"  {t}")
     else:
-        print("No types found.")
+        print("No spec types found.")
 
-def list_templates(t):
-    dir_path = os.path.join(TEMPLATES_DIR, t)
+def list_specs(t):
+    dir_path = os.path.join(SPECS_DIR, t)
     if not os.path.isdir(dir_path):
-        print(f"Type '{t}' does not exist.")
+        print(f"Spec type '{t}' does not exist.")
         return
     files = [f[:-3] for f in os.listdir(dir_path)
              if f.endswith('.md') and os.path.isfile(os.path.join(dir_path, f))]
     if not files:
-        print(f"No templates found for type '{t}'.")
+        print(f"No specs found for type '{t}'.")
     else:
-        print(f"Available templates for '{t}':")
+        print(f"Available specs for '{t}':")
         for f in files:
             print(f"  {f}")
 
@@ -88,50 +90,156 @@ def parse_ai_tool(args):
             print("Missing value for --ai-tool. Using default.")
     return DEFAULT_AI_TOOL
 
-def build_template_command(arg, ai_tool=DEFAULT_AI_TOOL):
+def build_generation_command(arg, ai_tool=DEFAULT_AI_TOOL):
     if ':' not in arg:
-        raise ValueError("Invalid format. Use <type>:<template_name>")
+        raise ValueError("Invalid format. Use <type>:<spec_name>")
     t, name = arg.split(':', 1)
-    file_path = os.path.join(TEMPLATES_DIR, t, f"{name}.md")
+    file_path = os.path.join(SPECS_DIR, t, f"{name}.md")
     if not os.path.isfile(file_path):
-        raise FileNotFoundError(f"Template '{name}' not found for type '{t}'.")
+        raise FileNotFoundError(f"Spec '{name}' not found for type '{t}'.")
     module = get_ai_tool_module(ai_tool)
     if not hasattr(module, 'execute'):
         raise AttributeError(f"AI tool module '{ai_tool}' does not have an 'execute' method.")
     cmd = module.execute(file_path)
     return cmd
 
-def run_template(arg, ai_tool=DEFAULT_AI_TOOL):
+def generate_from_spec(arg, ai_tool=DEFAULT_AI_TOOL):
     try:
-        cmd = build_template_command(arg, ai_tool)
+        cmd = build_generation_command(arg, ai_tool)
     except Exception as e:
         print(f"Error: {e}")
         return
     try:
         subprocess.run(cmd, shell=True, check=True)
     except subprocess.CalledProcessError as e:
-        print(f"Error running template command: {e}")
+        print(f"Error running generation command: {e}")
 
-def show_template(arg):
+def show_spec(arg):
     if ':' not in arg:
-        print("Invalid format. Use <type>:<template_name>")
+        print("Invalid format. Use <type>:<spec_name>")
         return
     t, name = arg.split(':', 1)
-    file_path = os.path.join(TEMPLATES_DIR, t, f"{name}.md")
+    file_path = os.path.join(SPECS_DIR, t, f"{name}.md")
     if not os.path.isfile(file_path):
-        print(f"Template '{name}' not found for type '{t}'.")
+        print(f"Spec '{name}' not found for type '{t}'.")
         return
     with open(file_path, 'r') as f:
         print(f.read())
 
-def dryrun_template(arg, ai_tool=DEFAULT_AI_TOOL):
+def dryrun_generation(arg, ai_tool=DEFAULT_AI_TOOL):
     try:
-        cmd = build_template_command(arg, ai_tool)
+        cmd = build_generation_command(arg, ai_tool)
     except Exception as e:
         print(f"Error: {e}")
         return
     print("[DRYRUN] Command that would be executed:")
     print(cmd)
+
+def create_spec(arg):
+    if ':' not in arg:
+        print("Invalid format. Use <type>:<spec_name>")
+        return
+    t, name = arg.split(':', 1)
+    
+    spec_type_dir = os.path.join(SPECS_DIR, t)
+    if not os.path.isdir(spec_type_dir):
+        os.makedirs(spec_type_dir)
+    
+    file_path = os.path.join(spec_type_dir, f"{name}.md")
+    if os.path.isfile(file_path):
+        print(f"Spec '{name}' already exists for type '{t}'.")
+        return
+    
+    # Create a default spec template
+    default_spec = f"""# {name.title()} Specification
+
+## Purpose
+Brief description of what this application does and why it exists.
+
+## Goals
+- Primary objective 1
+- Primary objective 2
+- Primary objective 3
+
+## Use Cases
+1. **Use Case 1**: Description of primary user interaction
+2. **Use Case 2**: Description of secondary user interaction
+3. **Use Case 3**: Description of edge case or special scenario
+
+## Usage Rules
+- Rule about how the application should behave
+- Constraint or limitation to consider
+- Performance or security requirement
+
+## Database Schema
+```sql
+-- Define your database tables here
+-- Example:
+-- CREATE TABLE users (
+--     id SERIAL PRIMARY KEY,
+--     email VARCHAR(255) UNIQUE NOT NULL,
+--     created_at TIMESTAMP DEFAULT NOW()
+-- );
+```
+
+## Services
+- **Service 1**: Description of core service functionality
+- **Service 2**: Description of supporting service
+- **Service 3**: Description of integration service
+
+## Endpoints
+### REST API Endpoints
+- `GET /api/resource` - Description
+- `POST /api/resource` - Description
+- `PUT /api/resource/:id` - Description
+- `DELETE /api/resource/:id` - Description
+
+## UI Layout
+### Main Components
+- **Header**: Navigation and user controls
+- **Sidebar**: Secondary navigation or filters
+- **Main Content**: Primary application interface
+- **Footer**: Additional links and information
+
+## Pages
+1. **Home Page** (`/`): Landing page with overview
+2. **Dashboard** (`/dashboard`): Main application interface
+3. **Settings** (`/settings`): User configuration
+4. **About** (`/about`): Application information
+
+## Technical Requirements
+- Framework preferences
+- Database requirements
+- Authentication needs
+- Deployment considerations
+"""
+    
+    with open(file_path, 'w') as f:
+        f.write(default_spec)
+    
+    print(f"Created new spec: {file_path}")
+
+def refine_spec(arg):
+    if ':' not in arg:
+        print("Invalid format. Use <type>:<spec_name>")
+        return
+    t, name = arg.split(':', 1)
+    file_path = os.path.join(SPECS_DIR, t, f"{name}.md")
+    if not os.path.isfile(file_path):
+        print(f"Spec '{name}' not found for type '{t}'. Use 'create' to make a new spec.")
+        return
+    
+    print(f"Opening spec for refinement: {file_path}")
+    print("Use your preferred editor to refine the spec, or use AI tools to help improve it.")
+    
+    # Could integrate with AI tools here to help refine specs
+    try:
+        subprocess.run(['nano', file_path], check=True)
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        try:
+            subprocess.run(['vim', file_path], check=True)
+        except (subprocess.CalledProcessError, FileNotFoundError):
+            print(f"Could not open editor. Please manually edit: {file_path}")
 
 def main():
     args = sys.argv[1:]
@@ -139,24 +247,30 @@ def main():
         show_help()
         return
     if args[0] == 'ls' and len(args) == 1:
-        list_types()
+        list_spec_types()
         return
     if args[0] == 'ls' and len(args) == 2:
         t = args[1]
-        list_templates(t)
+        list_specs(t)
         return
-    if args[0] == 'run' and len(args) >= 2:
+    if args[0] == 'generate' and len(args) >= 2:
         ai_tool = parse_ai_tool(args)
         arg = args[1]
-        run_template(arg, ai_tool)
+        generate_from_spec(arg, ai_tool)
         return
     if args[0] == 'dryrun' and len(args) >= 2:
         ai_tool = parse_ai_tool(args)
         arg = args[1]
-        dryrun_template(arg, ai_tool)
+        dryrun_generation(arg, ai_tool)
         return
     if args[0] == 'show' and len(args) == 2:
-        show_template(args[1])
+        show_spec(args[1])
+        return
+    if args[0] == 'create' and len(args) == 2:
+        create_spec(args[1])
+        return
+    if args[0] == 'refine' and len(args) == 2:
+        refine_spec(args[1])
         return
     show_help()
 
