@@ -61,17 +61,17 @@ def get_ai_tool_module(ai_tool):
     spec.loader.exec_module(module)
     return module
 
-def get_spec_types():
+def get_specs():
     try:
-        return [d for d in os.listdir(SPECS_DIR)
-                if os.path.isdir(os.path.join(SPECS_DIR, d))]
+        return [f[:-3] for f in os.listdir(SPECS_DIR) 
+                if f.endswith('.md') and os.path.isfile(os.path.join(SPECS_DIR, f))]
     except Exception:
         return []
 
 def get_help_text():
     script_name = "autobot"  # Always show "autobot" regardless of how script is called
     pad = ' ' * (len(script_name) + 1)
-    spec_types = get_spec_types()
+    specs = get_specs()
     ai_tools = get_ai_tools()
     current_default = get_default_ai_tool()
     purpose = "Save, refine, and leverage application specs for AI-driven development."
@@ -79,48 +79,35 @@ def get_help_text():
 {purpose}
 
 Usage:
-  {script_name}                                                Show this help message
-  {script_name} help                                           Show this help message
-  {script_name} generate <type>:<spec_name> [--ai-tool <tool>] Generate application from spec
-  {script_name} dryrun <type>:<spec_name> [--ai-tool <tool>]   Preview generation command
-  {script_name} show <type>:<spec_name>                        Display spec content
-  {script_name} ls                                             List available spec types
-  {script_name} ls <type>                                      List specs for a type
-  {script_name} create <type>:<spec_name>                      Create new spec from template
-  {script_name} refine <type>:<spec_name>                      Refine existing spec
-  {script_name} infer <type>:<spec_name> [--path <dir>]        Infer spec from existing codebase
-  {script_name} config default-ai-tool <tool>                  Set default AI tool
-  {script_name} config show                                    Show current configuration
+  {script_name}                                           Show this help message
+  {script_name} help                                      Show this help message
+  {script_name} generate <spec_name> [--ai-tool <tool>]   Generate application from spec
+  {script_name} dryrun <spec_name> [--ai-tool <tool>]     Preview generation command
+  {script_name} show <spec_name>                          Display spec content
+  {script_name} ls                                        List available specs
+  {script_name} create <spec_name>                        Create new spec from template
+  {script_name} refine <spec_name>                        Refine existing spec
+  {script_name} infer <spec_name> [--path <dir>]          Infer spec from existing codebase
+  {script_name} config default-ai-tool <tool>             Set default AI tool
+  {script_name} config show                               Show current configuration
 
-Spec Types: {', '.join(spec_types)}
+Available Specs: {', '.join(specs) if specs else 'None'}
 AI Tools: {', '.join(ai_tools)} (default: {current_default})
 """
 
 def show_help():
     print(get_help_text())
 
-def list_spec_types():
-    spec_types = get_spec_types()
-    if spec_types:
-        print("Available spec types:")
-        for t in spec_types:
-            print(f"  {t}")
+def list_specs():
+    specs = get_specs()
+    if specs:
+        print("Available specs:")
+        for spec in sorted(specs):
+            print(f"  {spec}")
     else:
-        print("No spec types found.")
+        print("No specs found.")
 
-def list_specs(t):
-    dir_path = os.path.join(SPECS_DIR, t)
-    if not os.path.isdir(dir_path):
-        print(f"Spec type '{t}' does not exist.")
-        return
-    files = [f[:-3] for f in os.listdir(dir_path)
-             if f.endswith('.md') and os.path.isfile(os.path.join(dir_path, f))]
-    if not files:
-        print(f"No specs found for type '{t}'.")
-    else:
-        print(f"Available specs for '{t}':")
-        for f in files:
-            print(f"  {f}")
+# Function removed - no longer needed with flattened structure
 
 def parse_ai_tool(args):
     if '--ai-tool' in args:
@@ -131,26 +118,23 @@ def parse_ai_tool(args):
             print("Missing value for --ai-tool. Using default.")
     return get_default_ai_tool()
 
-def build_generation_command(arg, ai_tool=None):
+def build_generation_command(spec_name, ai_tool=None):
     if ai_tool is None:
         ai_tool = get_default_ai_tool()
-    if ':' not in arg:
-        raise ValueError("Invalid format. Use <type>:<spec_name>")
-    t, name = arg.split(':', 1)
-    file_path = os.path.join(SPECS_DIR, t, f"{name}.md")
+    file_path = os.path.join(SPECS_DIR, f"{spec_name}.md")
     if not os.path.isfile(file_path):
-        raise FileNotFoundError(f"Spec '{name}' not found for type '{t}'.")
+        raise FileNotFoundError(f"Spec '{spec_name}' not found.")
     module = get_ai_tool_module(ai_tool)
     if not hasattr(module, 'execute'):
         raise AttributeError(f"AI tool module '{ai_tool}' does not have an 'execute' method.")
     cmd = module.execute(file_path)
     return cmd
 
-def generate_from_spec(arg, ai_tool=None):
+def generate_from_spec(spec_name, ai_tool=None):
     if ai_tool is None:
         ai_tool = get_default_ai_tool()
     try:
-        cmd = build_generation_command(arg, ai_tool)
+        cmd = build_generation_command(spec_name, ai_tool)
     except Exception as e:
         print(f"Error: {e}")
         return
@@ -159,46 +143,33 @@ def generate_from_spec(arg, ai_tool=None):
     except subprocess.CalledProcessError as e:
         print(f"Error running generation command: {e}")
 
-def show_spec(arg):
-    if ':' not in arg:
-        print("Invalid format. Use <type>:<spec_name>")
-        return
-    t, name = arg.split(':', 1)
-    file_path = os.path.join(SPECS_DIR, t, f"{name}.md")
+def show_spec(spec_name):
+    file_path = os.path.join(SPECS_DIR, f"{spec_name}.md")
     if not os.path.isfile(file_path):
-        print(f"Spec '{name}' not found for type '{t}'.")
+        print(f"Spec '{spec_name}' not found.")
         return
     with open(file_path, 'r') as f:
         print(f.read())
 
-def dryrun_generation(arg, ai_tool=None):
+def dryrun_generation(spec_name, ai_tool=None):
     if ai_tool is None:
         ai_tool = get_default_ai_tool()
     try:
-        cmd = build_generation_command(arg, ai_tool)
+        cmd = build_generation_command(spec_name, ai_tool)
     except Exception as e:
         print(f"Error: {e}")
         return
     print("[DRYRUN] Command that would be executed:")
     print(cmd)
 
-def create_spec(arg):
-    if ':' not in arg:
-        print("Invalid format. Use <type>:<spec_name>")
-        return
-    t, name = arg.split(':', 1)
-    
-    spec_type_dir = os.path.join(SPECS_DIR, t)
-    if not os.path.isdir(spec_type_dir):
-        os.makedirs(spec_type_dir)
-    
-    file_path = os.path.join(spec_type_dir, f"{name}.md")
+def create_spec(spec_name):
+    file_path = os.path.join(SPECS_DIR, f"{spec_name}.md")
     if os.path.isfile(file_path):
-        print(f"Spec '{name}' already exists for type '{t}'.")
+        print(f"Spec '{spec_name}' already exists.")
         return
     
     # Create a default spec template
-    default_spec = f"""# {name.title()} Specification
+    default_spec = f"""# {spec_name.title()} Specification
 
 ## Purpose
 Brief description of what this application does and why it exists.
@@ -266,14 +237,10 @@ Brief description of what this application does and why it exists.
     
     print(f"Created new spec: {file_path}")
 
-def refine_spec(arg):
-    if ':' not in arg:
-        print("Invalid format. Use <type>:<spec_name>")
-        return
-    t, name = arg.split(':', 1)
-    file_path = os.path.join(SPECS_DIR, t, f"{name}.md")
+def refine_spec(spec_name):
+    file_path = os.path.join(SPECS_DIR, f"{spec_name}.md")
     if not os.path.isfile(file_path):
-        print(f"Spec '{name}' not found for type '{t}'. Use 'create' to make a new spec.")
+        print(f"Spec '{spec_name}' not found. Use 'create' to make a new spec.")
         return
     
     print(f"Opening spec for refinement: {file_path}")
@@ -425,13 +392,8 @@ def parse_path_argument(args):
             print("Missing value for --path. Using current directory.")
     return "."
 
-def infer_spec(arg, source_path=None, ai_tool=None):
+def infer_spec(spec_name, source_path=None, ai_tool=None):
     """Infer a spec from an existing codebase using AI analysis"""
-    if ':' not in arg:
-        print("Invalid format. Use <type>:<spec_name>")
-        return
-    
-    t, name = arg.split(':', 1)
     
     # Use provided path or current directory
     analysis_path = source_path if source_path else "."
@@ -469,9 +431,9 @@ def infer_spec(arg, source_path=None, ai_tool=None):
 
 ===============================================================================
 
-Please analyze the codebase information provided above and generate a complete application specification following the exact format outlined in the meta-specification. The specification should be for an application named "{name}" and should be technology-agnostic while capturing all functional requirements.
+Please analyze the codebase information provided above and generate a complete application specification following the exact format outlined in the meta-specification. The specification should be for an application named "{spec_name}" and should be technology-agnostic while capturing all functional requirements.
 
-Save the generated specification as "{t}:{name}" in the Autobot specs system.
+Save the generated specification as "{spec_name}.md" in the Autobot specs system.
 """
         
         # Create temporary file with combined prompt
@@ -502,8 +464,7 @@ Save the generated specification as "{t}:{name}" in the Autobot specs system.
                 print("AI analysis completed successfully")
                 
                 # Check if the spec was created by the AI tool
-                spec_type_dir = os.path.join(SPECS_DIR, t)
-                spec_file_path = os.path.join(spec_type_dir, f"{name}.md")
+                spec_file_path = os.path.join(SPECS_DIR, f"{spec_name}.md")
                 
                 if os.path.exists(spec_file_path):
                     print(f"Generated spec: {spec_file_path}")
@@ -535,21 +496,17 @@ def main():
         show_help()
         return
     if args[0] == 'ls' and len(args) == 1:
-        list_spec_types()
-        return
-    if args[0] == 'ls' and len(args) == 2:
-        t = args[1]
-        list_specs(t)
+        list_specs()
         return
     if args[0] == 'generate' and len(args) >= 2:
         ai_tool = parse_ai_tool(args)
-        arg = args[1]
-        generate_from_spec(arg, ai_tool)
+        spec_name = args[1]
+        generate_from_spec(spec_name, ai_tool)
         return
     if args[0] == 'dryrun' and len(args) >= 2:
         ai_tool = parse_ai_tool(args)
-        arg = args[1]
-        dryrun_generation(arg, ai_tool)
+        spec_name = args[1]
+        dryrun_generation(spec_name, ai_tool)
         return
     if args[0] == 'show' and len(args) == 2:
         show_spec(args[1])
@@ -563,8 +520,8 @@ def main():
     if args[0] == 'infer' and len(args) >= 2:
         ai_tool = parse_ai_tool(args)
         source_path = parse_path_argument(args)
-        arg = args[1]
-        infer_spec(arg, source_path, ai_tool)
+        spec_name = args[1]
+        infer_spec(spec_name, source_path, ai_tool)
         return
     if args[0] == 'config' and len(args) >= 2:
         if args[1] == 'show':

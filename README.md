@@ -46,26 +46,26 @@ autobot ls
 autobot ls <type>
 
 # Show a spec's contents
-autobot show <type>:<spec_name>
+autobot show <spec_name>
 
 # Create a new spec
-autobot create <type>:<spec_name>
+autobot create <spec_name>
 
 # Refine an existing spec
-autobot refine <type>:<spec_name>
+autobot refine <spec_name>
 
 # Infer spec from existing codebase
-autobot infer <type>:<spec_name> [--path <directory>]
+autobot infer <spec_name> [--path <directory>]
 
 # Generate application from spec using default agent (Claude)
-autobot generate <type>:<spec_name>
+autobot generate <spec_name>
 
 # Generate application using Codex
-autobot generate <type>:<spec_name> --ai-tool codex
+autobot generate <spec_name> --ai-tool codex
 
 # Preview the generation command (dryrun)
-autobot dryrun <type>:<spec_name>
-autobot dryrun <type>:<spec_name> --ai-tool codex
+autobot dryrun <spec_name>
+autobot dryrun <spec_name> --ai-tool codex
 
 # Configure default AI tool
 autobot config default-ai-tool <tool>
@@ -75,21 +75,21 @@ autobot config show
 ## Example
 ```sh
 # Create a new web application spec
-autobot create app:my-webapp
+autobot create my-webapp
 
 # View existing specs
-autobot ls backend
-autobot show backend:python
+autobot ls
+autobot show estimator
 
 # Generate application from spec
-autobot generate backend:python
-autobot generate backend:python --ai-tool codex
+autobot generate estimator
+autobot generate estimator --ai-tool codex
 
 # Preview generation command
-autobot dryrun backend:python --ai-tool codex
+autobot dryrun estimator --ai-tool codex
 
 # Infer spec from existing project
-autobot infer applications:my-legacy-app --path /path/to/existing/project
+autobot infer my-legacy-app --path /path/to/existing/project
 
 # Configure AI tools
 autobot config show
@@ -122,9 +122,13 @@ To add a new agent, create a new `.py` file in `ai-tools/` with the required `ex
 
 Choose an agent at runtime with `--ai-tool <agent>`. If not specified, `claude` is used by default. You can change the default with `autobot config default-ai-tool <tool>`.
 
-## Spec Structure
+## Specification Philosophy
 
-Each spec follows a standardized outline to ensure clarity and completeness:
+Autobot treats each specification as a **complete, holistic description of an entire application**. Unlike traditional approaches that fragment requirements by technical layer (frontend, backend, database), Autobot specs capture the full application vision in a single, comprehensive document.
+
+### Standardized Spec Structure
+
+Each spec follows a 9-section outline to ensure clarity and completeness:
 
 1. **Purpose**: What the application does and why it exists
 2. **Goals**: Primary objectives and success criteria
@@ -138,19 +142,26 @@ Each spec follows a standardized outline to ensure clarity and completeness:
 
 This structure helps AI agents understand both technical requirements and user intent, enabling better code generation and reducing ambiguity.
 
+### Simplified Mental Model
+
+- **One Application = One Spec** - Complete applications deserve complete specifications
+- **Technology Agnostic** - Specs focus on WHAT the application does, not HOW
+- **AI Ready** - Structured format optimized for AI code generation
+- **Human Readable** - Clear documentation that serves both humans and machines
+
 ## Creating Specs from Existing Codebases
 
 Autobot can automatically analyze existing codebases and generate comprehensive specifications:
 
 ```bash
 # Analyze current directory and create spec
-autobot infer applications:my-app
+autobot infer my-app
 
 # Analyze specific directory
-autobot infer backend:legacy-api --path /path/to/legacy/project
+autobot infer legacy-api --path /path/to/legacy/project
 
 # Use specific AI tool for analysis  
-autobot infer frontend:old-webapp --path ./old-app --ai-tool codex
+autobot infer old-webapp --path ./old-app --ai-tool codex
 ```
 
 ### How Spec Inference Works

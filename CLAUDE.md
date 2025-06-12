@@ -9,25 +9,25 @@ Autobot is a Python CLI tool for creating, managing, and leveraging detailed app
 ## Core Architecture
 
 - **Entry Points**: `autobot.py` (main CLI) and `autobot.sh` (bash wrapper)
-- **Specs**: Markdown files in `specs/` organized by type with standardized structure
+- **Specs**: Markdown files in `specs/` directory with standardized structure
 - **AI Tools**: Python modules in `ai-tools/` that define how to execute specs with different AI agents
-- **Spec Types**: backend, frontend, design, applications, components, experimental, examples, db
+- **Review Directory**: `specs/_review/` contains component-level specs for evaluation
 
 ## Key Commands
 
 ```bash
 # Run autobot (use autobot.sh wrapper or python3 autobot.py)
-python3 autobot.py                                         # Show help
-python3 autobot.py ls                                      # List spec types  
-python3 autobot.py ls <type>                               # List specs for type
-python3 autobot.py show <type>:<spec>                      # Show spec content
-python3 autobot.py create <type>:<spec>                    # Create new spec
-python3 autobot.py refine <type>:<spec>                    # Refine existing spec
-python3 autobot.py generate <type>:<spec>                  # Generate with default AI tool (claude)
-python3 autobot.py generate <type>:<spec> --ai-tool codex  # Generate with specific AI tool
-python3 autobot.py config default-ai-tool <tool>           # Set default AI tool
-python3 autobot.py config show                             # Show current configuration
-python3 autobot.py dryrun <type>:<spec>                    # Preview generation command
+python3 autobot.py                                    # Show help
+python3 autobot.py ls                                 # List available specs
+python3 autobot.py show <spec>                       # Show spec content
+python3 autobot.py create <spec>                     # Create new spec
+python3 autobot.py refine <spec>                     # Refine existing spec
+python3 autobot.py infer <spec> [--path <dir>]       # Infer spec from codebase
+python3 autobot.py generate <spec>                   # Generate with default AI tool (claude)
+python3 autobot.py generate <spec> --ai-tool codex   # Generate with specific AI tool
+python3 autobot.py dryrun <spec>                     # Preview generation command
+python3 autobot.py config default-ai-tool <tool>     # Set default AI tool
+python3 autobot.py config show                       # Show current configuration
 ```
 
 ## AI Tool Integration
@@ -54,22 +54,21 @@ Each spec contains these sections:
 8. **UI Layout**: User interface structure and components
 9. **Pages**: Application flow and navigation
 
-### Spec Types
-- **backend/**: Server-side frameworks (Python/FastAPI, static sites)
-- **frontend/**: Client-side frameworks (Next.js, Alpine.js)
-- **applications/**: Complete applications (estimator, nevo-ai, tsql-spark)
-- **components/**: Reusable components and modules
-- **experimental/**: Experimental specs and development phases
-- **examples/**: Example specs and test cases
-- **design/**: Design-related specifications
-- **db/**: Database-specific specifications
+### Directory Structure
+- **specs/**: Complete application specifications (one file per application)
+- **specs/meta/**: Internal meta-specifications for system operation
+- **specs/_review/**: Component and layer-specific specs for evaluation
+  - Moved from old structure: backend/, frontend/, design/, examples/, experimental/, etc.
+  - These represent partial specs that focus on technical layers rather than complete applications
 
 ## Development Notes
 
-- Specs use markdown format with standardized sections for clarity and AI disambiguation
+- Specs use markdown format with standardized 9-section structure for clarity and AI disambiguation
+- Each spec represents a complete application, not a technical layer or component
 - The tool dynamically loads AI modules using importlib for extensibility
-- Spec naming follows `<type>/<name>.md` convention
+- Simplified naming: specs are stored as `<spec_name>.md` in the root specs/ directory
 - Shell command construction handles quote escaping for different AI tools
-- Specs can be created from existing codebases or built from scratch
+- Specs can be created from existing codebases using the `infer` command
 - Refinement workflow allows iterative improvement of specifications
 - Structured format reduces ambiguity and improves AI code generation quality
+- Component-level specs moved to `_review/` directory for evaluation
