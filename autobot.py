@@ -3,6 +3,8 @@ import sys
 import os
 import subprocess
 import json
+import glob
+import re
 
 import importlib.util
 
@@ -86,6 +88,7 @@ Usage:
   {script_name} ls <type>                                      List specs for a type
   {script_name} create <type>:<spec_name>                      Create new spec from template
   {script_name} refine <type>:<spec_name>                      Refine existing spec
+  {script_name} infer <type>:<spec_name> [--path <dir>]        Infer spec from existing codebase
   {script_name} config default-ai-tool <tool>                  Set default AI tool
   {script_name} config show                                    Show current configuration
 
@@ -304,6 +307,228 @@ def set_config_default_ai_tool(ai_tool):
     except Exception as e:
         print(f"Error saving configuration: {e}")
 
+def create_codebase_summary(path="."):
+    """Create a comprehensive summary of the codebase for AI analysis"""
+    summary_parts = []
+    
+    # Add project overview
+    summary_parts.append("=== CODEBASE ANALYSIS REQUEST ===")
+    summary_parts.append(f"Please analyze the following codebase located at: {os.path.abspath(path)}")
+    summary_parts.append("")
+    
+    # Read README if available
+    readme_files = ['README.md', 'README.txt', 'README.rst', 'readme.md']
+    for readme in readme_files:
+        readme_path = os.path.join(path, readme)
+        if os.path.exists(readme_path):
+            try:
+                with open(readme_path, 'r', encoding='utf-8') as f:
+                    content = f.read()
+                    summary_parts.append("=== README CONTENT ===")
+                    summary_parts.append(content[:3000])  # First 3000 chars
+                    summary_parts.append("")
+                    break
+            except:
+                pass
+    
+    # Directory structure
+    summary_parts.append("=== PROJECT STRUCTURE ===")
+    for root, dirs, files in os.walk(path):
+        # Skip hidden and common ignore directories
+        dirs[:] = [d for d in dirs if not d.startswith('.') and d not in ['node_modules', '__pycache__', 'venv', 'env', 'dist', 'build', 'target']]
+        
+        level = root.replace(path, '').count(os.sep)
+        indent = ' ' * 2 * level
+        summary_parts.append(f"{indent}{os.path.basename(root)}/")
+        
+        # Limit depth to avoid overwhelming output
+        if level < 3:
+            subindent = ' ' * 2 * (level + 1)
+            for file in files[:10]:  # Limit files per directory
+                if not file.startswith('.'):
+                    summary_parts.append(f"{subindent}{file}")
+            if len(files) > 10:
+                summary_parts.append(f"{subindent}... and {len(files) - 10} more files")
+    
+    summary_parts.append("")
+    
+    # Configuration files content
+    config_files = []
+    for root, dirs, files in os.walk(path):
+        dirs[:] = [d for d in dirs if not d.startswith('.') and d not in ['node_modules', '__pycache__', 'venv', 'env']]
+        for file in files:
+            if file.lower() in ['package.json', 'requirements.txt', 'cargo.toml', 'go.mod', 'pom.xml', 'composer.json', 'gemfile', 'setup.py']:
+                config_files.append(os.path.join(root, file))
+    
+    if config_files:
+        summary_parts.append("=== CONFIGURATION FILES ===")
+        for config_file in config_files[:5]:  # Limit to 5 config files
+            try:
+                with open(config_file, 'r', encoding='utf-8') as f:
+                    content = f.read()
+                    summary_parts.append(f"--- {os.path.relpath(config_file, path)} ---")
+                    summary_parts.append(content[:1000])  # First 1000 chars
+                    summary_parts.append("")
+            except:
+                pass
+    
+    # Sample source files
+    source_extensions = ['.py', '.js', '.ts', '.jsx', '.tsx', '.java', '.go', '.rs', '.php', '.rb']
+    source_files = []
+    
+    for root, dirs, files in os.walk(path):
+        dirs[:] = [d for d in dirs if not d.startswith('.') and d not in ['node_modules', '__pycache__', 'venv', 'env']]
+        for file in files:
+            if any(file.endswith(ext) for ext in source_extensions):
+                source_files.append(os.path.join(root, file))
+    
+    if source_files:
+        summary_parts.append("=== KEY SOURCE FILES (SAMPLES) ===")
+        # Prioritize main files, routes, models
+        priority_patterns = ['main', 'app', 'index', 'server', 'route', 'model', 'controller', 'service']
+        
+        priority_files = []
+        other_files = []
+        
+        for file_path in source_files:
+            file_name = os.path.basename(file_path).lower()
+            if any(pattern in file_name for pattern in priority_patterns):
+                priority_files.append(file_path)
+            else:
+                other_files.append(file_path)
+        
+        # Show priority files first, then others
+        sample_files = priority_files[:3] + other_files[:2]  # Max 5 files
+        
+        for file_path in sample_files:
+            try:
+                with open(file_path, 'r', encoding='utf-8') as f:
+                    content = f.read()
+                    summary_parts.append(f"--- {os.path.relpath(file_path, path)} ---")
+                    summary_parts.append(content[:2000])  # First 2000 chars
+                    summary_parts.append("")
+            except:
+                pass
+    
+    summary_parts.append("=== ANALYSIS INSTRUCTIONS ===")
+    summary_parts.append("Based on the above codebase information, please generate a comprehensive application specification following the standardized Autobot format. Focus on understanding WHAT this application does functionally, rather than HOW it's implemented technically. Create a technology-agnostic specification that could be used to rebuild this application with completely different technologies while preserving all core functionality and user experience.")
+    
+    return "\n".join(summary_parts)
+
+def parse_path_argument(args):
+    """Parse --path argument from command line args"""
+    if '--path' in args:
+        idx = args.index('--path')
+        if idx + 1 < len(args):
+            return args[idx + 1]
+        else:
+            print("Missing value for --path. Using current directory.")
+    return "."
+
+def infer_spec(arg, source_path=None, ai_tool=None):
+    """Infer a spec from an existing codebase using AI analysis"""
+    if ':' not in arg:
+        print("Invalid format. Use <type>:<spec_name>")
+        return
+    
+    t, name = arg.split(':', 1)
+    
+    # Use provided path or current directory
+    analysis_path = source_path if source_path else "."
+    
+    if not os.path.exists(analysis_path):
+        print(f"Path does not exist: {analysis_path}")
+        return
+    
+    if ai_tool is None:
+        ai_tool = get_default_ai_tool()
+    
+    print(f"Analyzing codebase at: {os.path.abspath(analysis_path)}")
+    print(f"Using AI tool: {ai_tool}")
+    
+    # Create a temporary combined prompt file
+    meta_spec_path = os.path.join(SPECS_DIR, 'meta', 'codebase-analyzer.md')
+    if not os.path.exists(meta_spec_path):
+        print("Error: Meta-spec for codebase analysis not found")
+        return
+    
+    try:
+        # Read the meta-spec
+        with open(meta_spec_path, 'r', encoding='utf-8') as f:
+            meta_spec_content = f.read()
+        
+        # Create codebase summary
+        codebase_summary = create_codebase_summary(analysis_path)
+        
+        # Combine meta-spec with codebase summary
+        combined_prompt = f"""{meta_spec_content}
+
+===============================================================================
+
+{codebase_summary}
+
+===============================================================================
+
+Please analyze the codebase information provided above and generate a complete application specification following the exact format outlined in the meta-specification. The specification should be for an application named "{name}" and should be technology-agnostic while capturing all functional requirements.
+
+Save the generated specification as "{t}:{name}" in the Autobot specs system.
+"""
+        
+        # Create temporary file with combined prompt
+        import tempfile
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.md', delete=False) as temp_file:
+            temp_file.write(combined_prompt)
+            temp_file_path = temp_file.name
+        
+        try:
+            # Use AI tool to generate the spec
+            print("Generating specification using AI analysis...")
+            
+            module = get_ai_tool_module(ai_tool)
+            
+            # For infer command, we need to handle the content differently
+            # Instead of using the execute function directly, we'll construct a safer command
+            if ai_tool == 'claude':
+                # Use the temp file directly with claude
+                cmd = f"claude -p --allowedTools 'Bash,Edit,Write' < {temp_file_path}"
+            else:
+                # Fall back to the module's execute method for other tools
+                cmd = module.execute(temp_file_path)
+            
+            # Execute the AI tool command
+            result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
+            
+            if result.returncode == 0:
+                print("AI analysis completed successfully")
+                
+                # Check if the spec was created by the AI tool
+                spec_type_dir = os.path.join(SPECS_DIR, t)
+                spec_file_path = os.path.join(spec_type_dir, f"{name}.md")
+                
+                if os.path.exists(spec_file_path):
+                    print(f"Generated spec: {spec_file_path}")
+                    print("Review and refine the generated spec to match your specific requirements.")
+                else:
+                    print("Note: The AI tool completed but the spec file was not found in the expected location.")
+                    print("The AI may have provided the specification in its output. Check the generated content.")
+                    if result.stdout:
+                        print("\nAI Tool Output:")
+                        print(result.stdout)
+            else:
+                print(f"Error running AI tool: {result.stderr}")
+                return
+                
+        finally:
+            # Clean up temporary file
+            try:
+                os.unlink(temp_file_path)
+            except:
+                pass
+                
+    except Exception as e:
+        print(f"Error during spec inference: {e}")
+        return
+
 def main():
     args = sys.argv[1:]
     if len(args) == 0 or (len(args) == 1 and args[0] == 'help'):
@@ -334,6 +559,12 @@ def main():
         return
     if args[0] == 'refine' and len(args) == 2:
         refine_spec(args[1])
+        return
+    if args[0] == 'infer' and len(args) >= 2:
+        ai_tool = parse_ai_tool(args)
+        source_path = parse_path_argument(args)
+        arg = args[1]
+        infer_spec(arg, source_path, ai_tool)
         return
     if args[0] == 'config' and len(args) >= 2:
         if args[1] == 'show':

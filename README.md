@@ -54,6 +54,9 @@ autobot create <type>:<spec_name>
 # Refine an existing spec
 autobot refine <type>:<spec_name>
 
+# Infer spec from existing codebase
+autobot infer <type>:<spec_name> [--path <directory>]
+
 # Generate application from spec using default agent (Claude)
 autobot generate <type>:<spec_name>
 
@@ -84,6 +87,9 @@ autobot generate backend:python --ai-tool codex
 
 # Preview generation command
 autobot dryrun backend:python --ai-tool codex
+
+# Infer spec from existing project
+autobot infer applications:my-legacy-app --path /path/to/existing/project
 
 # Configure AI tools
 autobot config show
@@ -134,11 +140,38 @@ This structure helps AI agents understand both technical requirements and user i
 
 ## Creating Specs from Existing Codebases
 
-Autobot can help you create specs based on existing applications:
-1. Analyze your current codebase structure
-2. Extract key components, APIs, and data models
-3. Document the application's purpose and behavior
-4. Create a comprehensive spec for future regeneration or evolution
+Autobot can automatically analyze existing codebases and generate comprehensive specifications:
+
+```bash
+# Analyze current directory and create spec
+autobot infer applications:my-app
+
+# Analyze specific directory
+autobot infer backend:legacy-api --path /path/to/legacy/project
+
+# Use specific AI tool for analysis  
+autobot infer frontend:old-webapp --path ./old-app --ai-tool codex
+```
+
+### How Spec Inference Works
+
+1. **Codebase Analysis**: Scans project structure, configuration files, and source code
+2. **AI-Powered Analysis**: Uses AI agents to understand functionality and purpose
+3. **Technology-Agnostic Output**: Generates specs focused on WHAT the app does, not HOW
+4. **Standardized Format**: Creates specifications following the 9-section Autobot format
+5. **Regeneration Ready**: Resulting specs can be used to rebuild with different technologies
+
+### What Gets Analyzed
+
+- Project structure and organization patterns
+- README files and documentation  
+- Configuration files (package.json, requirements.txt, etc.)
+- Database schema and model definitions
+- API routes and endpoint definitions
+- Frontend components and page structures
+- Business logic and user workflows
+
+The generated specification captures the essence of your application in a technology-agnostic way, enabling you to regenerate it with completely different tech stacks while preserving all functionality.
 
 ## License
 MIT
