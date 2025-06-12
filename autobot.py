@@ -10,6 +10,7 @@ import importlib.util
 
 SPECS_DIR = os.path.join(os.path.dirname(__file__), 'specs')
 AI_TOOLS_DIR = os.path.join(os.path.dirname(__file__), 'ai-tools')
+META_DIR = os.path.join(os.path.dirname(__file__), 'meta')
 CONFIG_FILE = os.path.join(os.path.dirname(__file__), '.autobot-config.json')
 DEFAULT_AI_TOOL = 'claude'
 
@@ -86,7 +87,8 @@ Usage:
   {script_name} show <spec_name>                          Display spec content
   {script_name} ls                                        List available specs
   {script_name} create <spec_name>                        Create new spec from template
-  {script_name} refine <spec_name>                        Refine existing spec
+  {script_name} refine <spec_name> [--ai-tool <tool>]     Refine existing spec with AI enhancement
+  {script_name} update <spec_name> [--path <dir>] [--ai-tool <tool>]  Update spec from current codebase (CAUTION)
   {script_name} infer <spec_name> [--path <dir>]          Infer spec from existing codebase
   {script_name} config default-ai-tool <tool>             Set default AI tool
   {script_name} config show                               Show current configuration
@@ -237,23 +239,311 @@ Brief description of what this application does and why it exists.
     
     print(f"Created new spec: {file_path}")
 
-def refine_spec(spec_name):
+def refine_spec(spec_name, ai_tool=None):
+    """Intelligently refine an existing spec using AI analysis and enhancement"""
     file_path = os.path.join(SPECS_DIR, f"{spec_name}.md")
     if not os.path.isfile(file_path):
         print(f"Spec '{spec_name}' not found. Use 'create' to make a new spec.")
         return
     
-    print(f"Opening spec for refinement: {file_path}")
-    print("Use your preferred editor to refine the spec, or use AI tools to help improve it.")
+    if ai_tool is None:
+        ai_tool = get_default_ai_tool()
     
-    # Could integrate with AI tools here to help refine specs
-    try:
-        subprocess.run(['nano', file_path], check=True)
-    except (subprocess.CalledProcessError, FileNotFoundError):
+    print(f"Refining spec using AI analysis: {spec_name}")
+    print(f"Using AI tool: {ai_tool}")
+    
+    # Check for refinement meta-spec
+    meta_spec_path = os.path.join(META_DIR, 'spec-refiner.md')
+    if not os.path.exists(meta_spec_path):
+        print("Error: Meta-spec for spec refinement not found")
+        print("Falling back to manual editing...")
+        # Fallback to manual editing
         try:
-            subprocess.run(['vim', file_path], check=True)
+            subprocess.run(['nano', file_path], check=True)
         except (subprocess.CalledProcessError, FileNotFoundError):
-            print(f"Could not open editor. Please manually edit: {file_path}")
+            try:
+                subprocess.run(['vim', file_path], check=True)
+            except (subprocess.CalledProcessError, FileNotFoundError):
+                print(f"Could not open editor. Please manually edit: {file_path}")
+        return
+    
+    try:
+        # Read the meta-spec for refinement
+        with open(meta_spec_path, 'r', encoding='utf-8') as f:
+            meta_spec_content = f.read()
+        
+        # Read the current spec
+        with open(file_path, 'r', encoding='utf-8') as f:
+            current_spec_content = f.read()
+        
+        # Create a refinement prompt combining meta-spec with current spec
+        refinement_prompt = f"""{meta_spec_content}
+
+===============================================================================
+
+CURRENT SPECIFICATION TO REFINE:
+
+{current_spec_content}
+
+===============================================================================
+
+REFINEMENT INSTRUCTIONS:
+
+Please analyze the above specification and refine it according to the refinement guidelines in the meta-specification. Focus on:
+
+1. Ensuring it follows the standardized Autobot format where applicable
+2. Improving clarity and technology-agnostic language
+3. Adding missing sections that would be valuable for this application type
+4. Omitting sections that are not applicable to this specific application
+5. Enhancing content for better AI code generation
+
+The application is named "{spec_name}". Please provide the complete refined specification, maintaining all original functional requirements while improving structure, clarity, and completeness.
+
+Save the refined specification by overwriting the existing file at: {file_path}
+"""
+        
+        # Create temporary file with refinement prompt
+        import tempfile
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.md', delete=False) as temp_file:
+            temp_file.write(refinement_prompt)
+            temp_file_path = temp_file.name
+        
+        try:
+            # Use AI tool to refine the spec
+            print("Analyzing and refining specification...")
+            
+            module = get_ai_tool_module(ai_tool)
+            
+            # Create appropriate command for refinement
+            if ai_tool == 'claude':
+                # Use the temp file directly with claude
+                cmd = f"claude -p --allowedTools 'Bash,Edit,Write' < {temp_file_path}"
+            else:
+                # Fall back to the module's execute method for other tools
+                cmd = module.execute(temp_file_path)
+            
+            # Execute the AI tool command
+            result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
+            
+            if result.returncode == 0:
+                print("Specification refinement completed successfully")
+                print(f"Refined spec saved to: {file_path}")
+                print("Review the enhanced specification to ensure it meets your requirements.")
+                
+                # Show a brief summary of what was changed if there's output
+                if result.stdout:
+                    print("\nRefinement Summary:")
+                    # Look for any summary or key changes mentioned in the output
+                    lines = result.stdout.split('\n')
+                    for line in lines[-10:]:  # Show last 10 lines for summary
+                        if line.strip() and not line.startswith('claude'):
+                            print(f"  {line}")
+            else:
+                print(f"Error during AI refinement: {result.stderr}")
+                print("Falling back to manual editing...")
+                # Fallback to manual editing on AI failure
+                try:
+                    subprocess.run(['nano', file_path], check=True)
+                except (subprocess.CalledProcessError, FileNotFoundError):
+                    try:
+                        subprocess.run(['vim', file_path], check=True)
+                    except (subprocess.CalledProcessError, FileNotFoundError):
+                        print(f"Could not open editor. Please manually edit: {file_path}")
+                return
+                
+        finally:
+            # Clean up temporary file
+            try:
+                os.unlink(temp_file_path)
+            except:
+                pass
+                
+    except Exception as e:
+        print(f"Error during spec refinement: {e}")
+        print("Falling back to manual editing...")
+        # Fallback to manual editing on any error
+        try:
+            subprocess.run(['nano', file_path], check=True)
+        except (subprocess.CalledProcessError, FileNotFoundError):
+            try:
+                subprocess.run(['vim', file_path], check=True)
+            except (subprocess.CalledProcessError, FileNotFoundError):
+                print(f"Could not open editor. Please manually edit: {file_path}")
+        return
+
+def update_spec(spec_name, source_path=None, ai_tool=None):
+    """Update an existing spec by analyzing current codebase and merging with existing content"""
+    file_path = os.path.join(SPECS_DIR, f"{spec_name}.md")
+    if not os.path.isfile(file_path):
+        print(f"Spec '{spec_name}' not found. Use 'create' to make a new spec.")
+        return
+    
+    # Use provided path or current directory
+    analysis_path = source_path if source_path else "."
+    
+    if not os.path.exists(analysis_path):
+        print(f"Path does not exist: {analysis_path}")
+        return
+    
+    if ai_tool is None:
+        ai_tool = get_default_ai_tool()
+    
+    # Display prominent warning
+    print("⚠️  CAUTION: WHOLESALE SPEC UPDATE ⚠️")
+    print("")
+    print("This command will perform a comprehensive update of your specification")
+    print("based on current codebase analysis. This may overwrite manual refinements")
+    print("and carefully crafted content.")
+    print("")
+    print("BEFORE PROCEEDING:")
+    print("- Backup your current specification")
+    print("- Ensure team awareness of the update")
+    print("- Plan time for thorough review of changes")
+    print("- Consider using 'refine' command for smaller adjustments")
+    print("")
+    print("This update will:")
+    print("✓ Analyze current codebase state")
+    print("✓ Merge findings with existing specification")
+    print("✓ Preserve business intent where possible")
+    print("⚠️ May overwrite technical sections completely")
+    print("⚠️ May modify carefully crafted content")
+    print("")
+    
+    # Require explicit confirmation
+    response = input("Continue? (y/N): ").strip().lower()
+    if response not in ['y', 'yes']:
+        print("Update cancelled.")
+        return
+    
+    # Check for updater meta-spec
+    meta_spec_path = os.path.join(META_DIR, 'spec-updater.md')
+    if not os.path.exists(meta_spec_path):
+        print("Error: Meta-spec for spec updating not found")
+        return
+    
+    print(f"Updating spec: {spec_name}")
+    print(f"Analyzing codebase at: {os.path.abspath(analysis_path)}")
+    print(f"Using AI tool: {ai_tool}")
+    
+    try:
+        # Read the meta-spec for updating
+        with open(meta_spec_path, 'r', encoding='utf-8') as f:
+            meta_spec_content = f.read()
+        
+        # Read the existing spec
+        with open(file_path, 'r', encoding='utf-8') as f:
+            existing_spec_content = f.read()
+        
+        # Create codebase summary
+        codebase_summary = create_codebase_summary(analysis_path)
+        
+        # Create update prompt combining all three elements
+        from datetime import datetime
+        current_date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        
+        update_prompt = f"""{meta_spec_content}
+
+===============================================================================
+
+EXISTING SPECIFICATION TO UPDATE:
+
+{existing_spec_content}
+
+===============================================================================
+
+CURRENT CODEBASE ANALYSIS:
+
+{codebase_summary}
+
+===============================================================================
+
+UPDATE INSTRUCTIONS:
+
+Please perform an intelligent update of the existing specification based on the current codebase analysis, following the update guidelines in the meta-specification. 
+
+Key Requirements:
+1. Preserve human intent in Purpose, Goals, and business context sections
+2. Update technical sections (Database Schema, Services, Endpoints, UI Layout, Pages) to reflect current codebase
+3. Add new functionality discovered in codebase analysis
+4. Flag any conflicts between existing spec and current code reality
+5. Maintain technology-agnostic language and Autobot format standards
+6. Include update summary showing what changed
+
+The application is named "{spec_name}" and this update is being performed on {current_date}.
+
+Save the updated specification by overwriting the existing file at: {file_path}
+
+Include clear update notes documenting:
+- What sections were modified and why
+- New functionality that was added
+- Any conflicts that need human review
+- Content that was intentionally preserved
+"""
+        
+        # Create temporary file with update prompt
+        import tempfile
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.md', delete=False) as temp_file:
+            temp_file.write(update_prompt)
+            temp_file_path = temp_file.name
+        
+        try:
+            # Use AI tool to update the spec
+            print("Performing intelligent spec update...")
+            print("This may take a moment as we analyze the codebase and merge with existing spec...")
+            
+            module = get_ai_tool_module(ai_tool)
+            
+            # Create appropriate command for updating
+            if ai_tool == 'claude':
+                # Use the temp file directly with claude
+                cmd = f"claude -p --allowedTools 'Bash,Edit,Write' < {temp_file_path}"
+            else:
+                # Fall back to the module's execute method for other tools
+                cmd = module.execute(temp_file_path)
+            
+            # Execute the AI tool command
+            result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
+            
+            if result.returncode == 0:
+                print("✅ Specification update completed successfully")
+                print(f"Updated spec saved to: {file_path}")
+                print("")
+                print("🔍 IMPORTANT: Please review the updated specification carefully!")
+                print("   - Check that business intent was preserved")
+                print("   - Verify new functionality is accurate")
+                print("   - Look for any flagged conflicts")
+                print("   - Ensure technical details match current codebase")
+                print("")
+                print("Consider running 'autobot show {spec_name}' to review the updated content.")
+                
+                # Show a brief summary if available
+                if result.stdout:
+                    # Look for update summary in the output
+                    lines = result.stdout.split('\n')
+                    summary_started = False
+                    for line in lines:
+                        if 'update' in line.lower() and ('summary' in line.lower() or 'changes' in line.lower()):
+                            summary_started = True
+                        elif summary_started and line.strip():
+                            print(f"  {line}")
+                        elif summary_started and not line.strip():
+                            break
+            else:
+                print(f"❌ Error during spec update: {result.stderr}")
+                print("The original specification remains unchanged.")
+                return
+                
+        finally:
+            # Clean up temporary file
+            try:
+                os.unlink(temp_file_path)
+            except:
+                pass
+                
+    except Exception as e:
+        print(f"Error during spec update: {e}")
+        print("The original specification remains unchanged.")
+        return
 
 def show_config():
     config = load_config()
@@ -409,7 +699,7 @@ def infer_spec(spec_name, source_path=None, ai_tool=None):
     print(f"Using AI tool: {ai_tool}")
     
     # Create a temporary combined prompt file
-    meta_spec_path = os.path.join(SPECS_DIR, 'meta', 'codebase-analyzer.md')
+    meta_spec_path = os.path.join(META_DIR, 'codebase-analyzer.md')
     if not os.path.exists(meta_spec_path):
         print("Error: Meta-spec for codebase analysis not found")
         return
@@ -514,8 +804,16 @@ def main():
     if args[0] == 'create' and len(args) == 2:
         create_spec(args[1])
         return
-    if args[0] == 'refine' and len(args) == 2:
-        refine_spec(args[1])
+    if args[0] == 'refine' and len(args) >= 2:
+        ai_tool = parse_ai_tool(args)
+        spec_name = args[1]
+        refine_spec(spec_name, ai_tool)
+        return
+    if args[0] == 'update' and len(args) >= 2:
+        ai_tool = parse_ai_tool(args)
+        source_path = parse_path_argument(args)
+        spec_name = args[1]
+        update_spec(spec_name, source_path, ai_tool)
         return
     if args[0] == 'infer' and len(args) >= 2:
         ai_tool = parse_ai_tool(args)

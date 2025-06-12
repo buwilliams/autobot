@@ -6,7 +6,7 @@ Analyze an existing codebase in a tech-stack agnostic way and generate a compreh
 ## Goals
 - Analyze codebase structure, configuration, and patterns to understand application purpose
 - Extract business logic and functionality independent of implementation details
-- Generate a technology-agnostic specification following the 9-section Autobot format
+- Generate a technology-agnostic specification following the Autobot format (flexible based on application needs)
 - Identify core services, data models, and user interactions
 - Document current technical stack while focusing on functional requirements
 - Create a spec that enables regenerating the application with different technologies
@@ -64,7 +64,7 @@ Understand user interactions:
 
 ## Output Specification Format
 
-Generate a complete specification following this exact structure:
+Generate a complete specification using the Autobot format as a foundation, adapting sections based on the application's specific needs. The recommended structure includes these core sections, but you should omit irrelevant sections and add specialized sections as needed:
 
 ```markdown
 # [Application Name] Specification
@@ -83,25 +83,25 @@ Generate a complete specification following this exact structure:
 2. **[Secondary Use Case]**: [Supporting functionality]
 3. **[Administrative Use Case]**: [Management and configuration tasks]
 
-## Usage Rules
+## Usage Rules *(Include only if the application has behavioral constraints or business rules)*
 - [Business rules and constraints identified in code]
 - [Data validation and integrity requirements]
 - [Security and access control requirements]
 - [Performance and reliability expectations]
 
-## Database Schema
+## Database Schema *(Include only if the application persists data)*
 ```sql
 -- [Conceptual data model derived from analysis]
 -- [Key entities and relationships]
 -- [Important constraints and indexes]
 ```
 
-## Services
+## Services *(Include only if the application has distinct service layers or modules)*
 - **[Service Name]**: [Core functionality description]
 - **[Service Name]**: [Supporting service description]
 [Continue for all identified services/modules]
 
-## Endpoints
+## Endpoints *(Include only for applications with APIs or web interfaces)*
 ### API Endpoints
 - `[METHOD] [ROUTE]` - [Functional description]
 [List all identified endpoints with their purpose]
@@ -110,7 +110,7 @@ Generate a complete specification following this exact structure:
 - `[ROUTE]` - [Page/component purpose]
 [List main application routes and their function]
 
-## UI Layout
+## UI Layout *(Include only for applications with user interfaces)*
 ### Application Structure
 - **[Component]**: [Purpose and functionality]
 - **[Component]**: [Purpose and functionality]
@@ -118,10 +118,20 @@ Generate a complete specification following this exact structure:
 ### Key Components
 [Describe main UI patterns and component types identified]
 
-## Pages
+## Pages *(Include only for multi-page/multi-screen applications)*
 1. **[Page Name]** (`[route]`): [Purpose and functionality]
 2. **[Page Name]** (`[route]`): [Purpose and functionality]
 [Continue for all main pages/views]
+
+## [Custom Sections as Needed]
+*Add specialized sections based on the application type:*
+- **CLI Commands** (for command-line tools)
+- **Configuration** (for highly configurable applications)
+- **Workflows** (for process-oriented applications)
+- **Integrations** (for applications with many external services)
+- **Security Model** (for security-critical applications)
+- **Performance Requirements** (for performance-critical applications)
+- **Deployment Architecture** (for complex deployment scenarios)
 
 ## Technical Requirements
 
@@ -156,6 +166,8 @@ When analyzing a codebase:
 6. **Abstract implementation details**: Describe functionality without tech-specific terms
 7. **Identify patterns**: Look for common architectural and design patterns
 8. **Consider user perspective**: Think about how users interact with the application
+9. **Determine applicable sections**: Based on application type, decide which sections are relevant
+10. **Identify specialized needs**: Look for unique aspects that require custom sections
 
 ## Output Guidelines
 
@@ -165,11 +177,13 @@ When analyzing a codebase:
 - Include migration notes for preserving current behavior
 - Mark uncertain areas for review and clarification
 - Ensure the spec could enable building the same application with completely different technologies
+- Be selective: only include sections that add value for the specific application
+- Add custom sections when the application has unique requirements not covered by standard sections
 
 ## Quality Checklist
 
 Ensure the generated specification:
-- [ ] Follows the exact 9-section Autobot format
+- [ ] Uses the Autobot format as a foundation, adapting sections appropriately
 - [ ] Describes WHAT the application does, not HOW
 - [ ] Is technology-agnostic while preserving functional requirements
 - [ ] Includes all major features and capabilities identified
@@ -177,3 +191,6 @@ Ensure the generated specification:
 - [ ] Documents data relationships conceptually
 - [ ] Provides sufficient detail for regeneration
 - [ ] Includes notes about current implementation for reference
+- [ ] Only includes sections that are relevant to the application type
+- [ ] Adds custom sections when the application has unique requirements
+- [ ] Omits sections that don't apply (e.g., no Database Schema for stateless apps)

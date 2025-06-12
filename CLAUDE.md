@@ -11,6 +11,7 @@ Autobot is a Python CLI tool for creating, managing, and leveraging detailed app
 - **Entry Points**: `autobot.py` (main CLI) and `autobot.sh` (bash wrapper)
 - **Specs**: Markdown files in `specs/` directory with standardized structure
 - **AI Tools**: Python modules in `ai-tools/` that define how to execute specs with different AI agents
+- **Meta Specs**: System instructions in `meta/` directory for AI operations (refinement, analysis, etc.)
 - **Review Directory**: `specs/_review/` contains component-level specs for evaluation
 
 ## Key Commands
@@ -56,7 +57,7 @@ Each spec contains these sections:
 
 ### Directory Structure
 - **specs/**: Complete application specifications (one file per application)
-- **specs/meta/**: Internal meta-specifications for system operation
+- **meta/**: Internal meta-specifications for system operation (refinement, analysis, etc.)
 - **specs/_review/**: Component and layer-specific specs for evaluation
   - Moved from old structure: backend/, frontend/, design/, examples/, experimental/, etc.
   - These represent partial specs that focus on technical layers rather than complete applications
